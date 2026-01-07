@@ -1382,7 +1382,7 @@ packages:
 - pypi: ./
   name: dirac-cwl-proto
   version: 0.1.0
-  sha256: 5c5b0f9a59055964d71ef39b8ec1a54b9fb3c0239d500796fdeb922a26f0f3f8
+  sha256: 9a037a50cc0e913880badd350d69eb711ad7c92037c28b20f8c36b12156c0ece
   requires_dist:
   - cwl-utils
   - cwlformat
