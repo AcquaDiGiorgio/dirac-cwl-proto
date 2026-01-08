@@ -113,19 +113,19 @@ def submit_transformation_router(transformation: TransformationSubmissionModel) 
         min_length = None
         for input_name, group_size in transformation_execution_hooks.group_size.items():
             # Get input query
-            logger.info(f"\t- Getting input query for {input_name}...")
+            logger.info("\t- Getting input query for %s...", input_name)
             input_query = transformation_metadata.get_input_query(input_name)
             if not input_query:
                 raise RuntimeError("Input query not found.")
 
             # Wait for the input to be available
-            logger.info(f"\t- Waiting for input data for {input_name}...")
-            logger.debug(f"\t\t- Query: {input_query}")
-            logger.debug(f"\t\t- Group Size: {group_size}")
+            logger.info("\t- Waiting for input data for %s...", input_name)
+            logger.debug("\t\t- Query: %s", input_query)
+            logger.debug("\t\t- Group Size: %s", group_size)
             while not (inputs := _get_inputs(input_query, group_size)):
-                logger.debug(f"\t\t- Result: {inputs}")
+                logger.debug("\t\t- Result: %s", inputs)
                 time.sleep(5)
-            logger.info(f"\t- Input data for {input_name} available.")
+            logger.info("\t- Input data for %s available.", input_name)
             if not min_length or len(inputs) < min_length:
                 min_length = len(inputs)
 

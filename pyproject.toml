@@ -56,7 +56,7 @@ line-length = 120
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "PLE", "D"]
+select = ["E", "F", "B", "I", "PLE", "D", "G"]
 ignore = ["B905", "B008", "B006"]
 
 [tool.ruff.lint.pydocstyle]

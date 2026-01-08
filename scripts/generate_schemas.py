@@ -54,7 +54,7 @@ def collect_pydantic_models() -> Dict[str, Any]:
         )
         logger.info("Collected core metadata models")
     except ImportError as e:
-        logger.error(f"Failed to import core models: {e}")
+        logger.error("Failed to import core models: %s", e)
 
     # Import submission models
     try:
@@ -75,7 +75,7 @@ def collect_pydantic_models() -> Dict[str, Any]:
         )
         logger.info("Collected submission models")
     except ImportError as e:
-        logger.error(f"Failed to import submission models: {e}")
+        logger.error("Failed to import submission models: %s", e)
 
     # Collect all registered metadata plugins
     try:
@@ -86,7 +86,7 @@ def collect_pydantic_models() -> Dict[str, Any]:
 
         # Get all registered plugins
         all_experiments = registry.list_virtual_organizations()
-        logger.info(f"Found experiments: {all_experiments}")
+        logger.info("Found experiments: %s", all_experiments)
 
         for experiment in all_experiments + [None]:  # Include global plugins
             plugin_names = registry.list_plugins(experiment)
@@ -95,7 +95,7 @@ def collect_pydantic_models() -> Dict[str, Any]:
                 if plugin_class:
                     key = f"{experiment}_{plugin_name}" if experiment else plugin_name
                     models[key] = plugin_class
-                    logger.info(f"Collected plugin: {key} ({plugin_class.__name__})")
+                    logger.info("Collected plugin: %s (%s)", key, plugin_class.__name__)
 
         excluded_prefixes = (
             "BaseMetadata",
@@ -104,9 +104,9 @@ def collect_pydantic_models() -> Dict[str, Any]:
             "Production",
         )
         plugin_count = len([k for k in models.keys() if not k.startswith(excluded_prefixes)])
-        logger.info(f"Collected {plugin_count} metadata plugins")
+        logger.info("Collected %s metadata plugins", plugin_count)
     except ImportError as e:
-        logger.error(f"Failed to import metadata registry: {e}")
+        logger.error("Failed to import metadata registry: %s", e)
 
     return models
 
@@ -202,10 +202,10 @@ def generate_schema(model_class: Any, model_name: str) -> Dict[str, Any]:
     except Exception as e:
         # Handle CWL-related models specially
         if "cwl_utils.parser" in str(e) or "IsInstanceSchema" in str(e) or "Workflow" in str(e):
-            logger.info(f"Creating CWL schema reference for {model_name}")
+            logger.info("Creating CWL schema reference for %s", model_name)
             return create_cwl_schema_shim(model_class, model_name)
 
-        logger.warning(f"Skipping schema generation for {model_name}: {e}")
+        logger.warning("Skipping schema generation for %s: %s", model_name, e)
         return {}
 
 
@@ -256,7 +256,7 @@ def save_schema(schema: Dict[str, Any], output_path: Path, format: str = "json")
     else:
         raise ValueError(f"Unsupported format: {format}")
 
-    logger.info(f"Saved schema to {output_path}")
+    logger.info("Saved schema to %s", output_path)
 
 
 def main():
@@ -296,7 +296,7 @@ def main():
         logger.error("No models found. Exiting.")
         return 1
 
-    logger.info(f"Found {len(models)} models to process")
+    logger.info("Found %s models to process", len(models))
 
     # Create output directory
     args.output_dir.mkdir(parents=True, exist_ok=True)
