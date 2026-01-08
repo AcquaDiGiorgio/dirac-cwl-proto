@@ -197,7 +197,7 @@ class ExecutionHooksBasePlugin(BaseModel):
             Additional keyword arguments for extensibility.
         """
         for output_name, src_path in outputs.items():
-            logger.info(f"Storing output {output_name}, with source {src_path}")
+            logger.info("Storing output %s, with source %s", output_name, src_path)
 
             if not src_path:
                 raise RuntimeError(f"src_path parameter required for filesystem storage of {output_name}")
@@ -213,7 +213,7 @@ class ExecutionHooksBasePlugin(BaseModel):
                     for se in self.output_se:
                         res = returnSingleResult(self._datamanager.putAndRegister(str(file_lfn), src, se))
                         if res["OK"]:
-                            logger.info(f"Successfully saved file {src} with LFN {file_lfn}")
+                            logger.info("Successfully saved file %s with LFN %s", src, file_lfn)
                             break
                     if res and not res["OK"]:
                         raise RuntimeError(f"Could not save file {src} with LFN {str(lfn)} : {res['Message']}")

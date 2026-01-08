@@ -99,7 +99,7 @@ def submit_production_router(production: ProductionSubmissionModel) -> bool:
     # Split the production into transformations
     logger.info("Creating transformations from production...")
     transformations = _get_transformations(production)
-    logger.info(f"{len(transformations)} transformations created!")
+    logger.info("%s transformations created!", len(transformations))
 
     # Submit the transformations
     logger.info("Submitting transformations...")

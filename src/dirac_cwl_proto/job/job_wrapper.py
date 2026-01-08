@@ -79,7 +79,7 @@ class JobWrapper:
                 if isinstance(src_path, Path) or isinstance(src_path, str):
                     src_path = [src_path]
                 sb_path = returnValueOrRaise(self._sandbox_store_client.uploadFilesAsSandbox(src_path))
-                logger.info(f"Successfully stored output {output_name} in Sandbox {sb_path}")
+                logger.info("Successfully stored output %s in Sandbox %s", output_name, sb_path)
 
     def __download_input_data(self, inputs: JobInputModel, job_path: Path) -> dict[str, Path | list[Path]]:
         """Download LFNs into the job working directory.
@@ -256,11 +256,11 @@ class JobWrapper:
             logger.info("Task pre-processed successfully!")
 
             # Execute the task
-            logger.info(f"Executing Task: {command}")
+            logger.info("Executing Task: %s", command)
             result = subprocess.run(command, capture_output=True, text=True, cwd=self.job_path)
 
             if result.returncode != 0:
-                logger.error(f"Error in executing workflow:\n{Text.from_ansi(result.stderr)}")
+                logger.error("Error in executing workflow:\n%s", Text.from_ansi(result.stderr))
                 return False
             logger.info("Task executed successfully!")
 

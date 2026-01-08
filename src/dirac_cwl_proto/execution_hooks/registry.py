@@ -64,10 +64,13 @@ class ExecutionHooksPluginRegistry:
                 self._vo_plugins[vo] = {}
             self._vo_plugins[vo][plugin_key] = plugin_class
 
+        vo_suffix = f" (VO: {vo})" if vo else ""
         logger.info(
-            f"Registered metadata plugin '{plugin_key}' "
-            f"from {plugin_class.__module__}.{plugin_class.__name__}"
-            f"{f' (VO: {vo})' if vo else ''}"
+            "Registered metadata plugin '%s' from %s.%s%s",
+            plugin_key,
+            plugin_class.__module__,
+            plugin_class.__name__,
+            vo_suffix,
         )
 
     def get_plugin(self, plugin_key: str, vo: Optional[str] = None) -> Optional[Type[ExecutionHooksBasePlugin]]:
@@ -160,7 +163,7 @@ class ExecutionHooksPluginRegistry:
                         ExecutionHooksBasePlugin.__name__,
                     )
             except Exception as e:
-                logger.error(f"Failed to import plugin {hook_name}: {e}")
+                logger.error("Failed to import plugin %s: %s", hook_name, e)
 
         return discovered
 

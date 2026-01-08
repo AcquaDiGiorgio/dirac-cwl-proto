@@ -241,9 +241,9 @@ def run_job(job_id: int, job: JobModel, logger: logging.Logger) -> bool:
 
     # Log output
     if result.stdout:
-        logger.info(f"STDOUT {job_id}:\n{result.stdout}")
+        logger.info("STDOUT %s:\n%s", job_id, result.stdout)
     if result.stderr:
-        logger.error(f"STDERR {job_id}:\n{result.stderr}")
+        logger.error("STDERR %s:\n%s", job_id, result.stderr)
 
     logger.info("Job execution completed.")
     return result.returncode == 0
