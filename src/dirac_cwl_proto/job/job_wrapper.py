@@ -135,12 +135,10 @@ class JobWrapper:
            the correct local files.
         """
         for _, value in inputs.cwl.items():
-            if isinstance(value, list):
-                for file in value:
-                    if isinstance(file, File) and file.path:
-                        file.path = Path(file.path).name
-            elif isinstance(value, File) and value.path:
-                value.path = Path(value.path).name
+            files = value if isinstance(value, list) else [value]
+            for file in files:
+                if isinstance(file, File) and file.path:
+                    file.path = Path(file.path).name
         for input_name, path in updates.items():
             if isinstance(path, Path):
                 inputs.cwl[input_name] = File(path=str(path))
