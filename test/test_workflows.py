@@ -235,15 +235,12 @@ def test_run_job_validation_failure(cli_runner, cleanup, cwl_file, inputs, expec
 
 def test_run_job_parallely():
     """Test parallel job execution performance."""
-    command_seq = [
-        "taskset", "-c", "0",
-        "dirac-cwl", "job", "submit",
-        "test/workflows/parallel/description.cwl"
-    ]
-    
+    command_seq = ["taskset", "-c", "0", "dirac-cwl", "job", "submit", "test/workflows/parallel/description.cwl"]
+
     # Dictionary to evade creating the Process class more than one time
     #  If not, process.cpu_percent(None) will always return 0
-    processes = {} # pid: psutil.Process
+    processes = {}  # pid: psutil.Process
+
     def get_process(pid):
         if pid not in processes:
             processes[pid] = psutil.Process(pid)
@@ -267,17 +264,14 @@ def test_run_job_parallely():
             if cpu_percentage > seq_max_cpu_percentage:
                 seq_max_cpu_percentage = cpu_percentage
 
-    command_par = [
-        "dirac-cwl", "job", "submit",
-        "test/workflows/parallel/description.cwl"
-    ]
-    
+    command_par = ["dirac-cwl", "job", "submit", "test/workflows/parallel/description.cwl"]
+
     parent_popen = subprocess.Popen(command_par)
     parent_process = psutil.Process(parent_popen.pid)
     par_max_cpu_percentage = 0
 
     processes = {}
-    
+
     while parent_popen.poll() is None:
         time.sleep(0.1)
 
@@ -293,13 +287,10 @@ def test_run_job_parallely():
                 par_max_cpu_percentage = cpu_percentage
 
     # Make sure that sequential max cpu usage percentage is less than 115% (magic number)
-    assert seq_max_cpu_percentage < 115, (
-            f"Sequential max cpu usage higher than 115%: {seq_max_cpu_percentage}"
-        )
+    assert seq_max_cpu_percentage < 115, f"Sequential max cpu usage higher than 115%: {seq_max_cpu_percentage}"
     # Make sure that max parallel cpu usage percentage is higher than 115% (same magic number)
-    assert par_max_cpu_percentage > 115, (
-            f"Parallel max cpu usage not higher than 115%: {par_max_cpu_percentage}"
-        )
+    assert par_max_cpu_percentage > 115, f"Parallel max cpu usage not higher than 115%: {par_max_cpu_percentage}"
+
 
 @pytest.mark.parametrize(
     "cwl_file, inputs, destination_source_input_data",
