@@ -10,7 +10,6 @@ import subprocess
 from pathlib import Path
 from typing import Sequence, cast
 
-import DIRAC  # type: ignore[import-untyped]
 from cwl_utils.parser import (
     save,
 )
@@ -56,7 +55,6 @@ class JobWrapper:
         if os.getenv("DIRAC_PROTO_LOCAL") == "1":
             self._sandbox_store_client = MockSandboxStoreClient()
         else:
-            DIRAC.initialize()
             self._sandbox_store_client = SandboxStoreClient()
 
     def __download_input_sandbox(self, arguments: JobInputModel, job_path: Path) -> None:
