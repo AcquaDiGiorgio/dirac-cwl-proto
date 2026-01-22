@@ -7,14 +7,13 @@ import os
 import sys
 import tempfile
 
+import DIRAC  # type: ignore[import-untyped]
 from cwl_utils.parser import load_document_by_uri
 from cwl_utils.parser.cwl_v1_2_utils import load_inputfile
-from DIRAC.Core.Base.Script import Script  # type: ignore[import-untyped]
 from ruamel.yaml import YAML
 
 if os.getenv("DIRAC_PROTO_LOCAL") != "1":
-    Script.parseCommandLine()
-
+    DIRAC.initialize()
 
 from dirac_cwl_proto.job.job_wrapper import JobWrapper
 from dirac_cwl_proto.submission_models import JobModel
@@ -22,7 +21,7 @@ from dirac_cwl_proto.submission_models import JobModel
 
 def main():
     """Execute the job wrapper for a given job model."""
-    if len(Script.getPositionalArgs()) != 1:
+    if len(sys.argv) != 2:
         logging.error("1 argument is required")
         sys.exit(1)
 
