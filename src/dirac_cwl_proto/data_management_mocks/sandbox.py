@@ -12,18 +12,9 @@ from typing import Literal, Optional, Sequence
 import zstandard
 from DIRAC.WorkloadManagementSystem.Client.SandboxStoreClient import SandboxStoreClient  # type: ignore[import-untyped]
 from DIRACCommon.Core.Utilities.ReturnValues import S_OK  # type: ignore[import-untyped]
-from pydantic import BaseModel, Field
+from diracx.core.models import SandboxInfo
 
 logger = logging.getLogger(__name__)
-
-
-class MockSandboxInfo(BaseModel):
-    """Mock Dirac Sandbox Info."""
-
-    checksum_algorithm: str
-    checksum: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
-    size: int = Field(ge=1)
-    format: str
 
 
 class MockDiracXSandboxAPI:
@@ -60,7 +51,7 @@ class MockDiracXSandboxAPI:
             logger.debug("Sandbox checksum is %s", checksum)
 
             # Store sandbox info
-            sandbox_info = MockSandboxInfo(
+            sandbox_info = SandboxInfo(
                 checksum_algorithm=self.SANDBOX_CHECKSUM_ALGORITHM,
                 checksum=checksum,
                 size=os.stat(tar_fh.fileno()).st_size,
