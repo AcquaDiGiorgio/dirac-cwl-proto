@@ -24,7 +24,6 @@ from DIRAC.WorkloadManagementSystem.Client.SandboxStoreClient import SandboxStor
 from DIRACCommon.Core.Utilities.ReturnValues import (  # type: ignore[import-untyped]
     returnValueOrRaise,
 )
-from pydantic import PrivateAttr
 from rich.text import Text
 from ruamel.yaml import YAML
 
@@ -47,7 +46,7 @@ logger = logging.getLogger(__name__)
 class JobWrapper:
     """Job Wrapper for the execution hook."""
 
-    _sandbox_store_client: SandboxStoreClient = PrivateAttr(default_factory=SandboxStoreClient)
+    _sandbox_store_client: SandboxStoreClient
 
     def __init__(self) -> None:
         """Initialize the job wrapper."""
@@ -55,6 +54,8 @@ class JobWrapper:
         self.job_path: Path = Path()
         if os.getenv("DIRAC_PROTO_LOCAL") == "1":
             self._sandbox_store_client = MockSandboxStoreClient()
+        else:
+            self._sandbox_store_client = SandboxStoreClient()
 
     def __download_input_sandbox(self, arguments: JobInputModel, job_path: Path) -> None:
         """Download the files from the sandbox store.
@@ -66,7 +67,9 @@ class JobWrapper:
         if not self.execution_hooks_plugin:
             raise RuntimeError("Could not download sandboxes")
         for sandbox in arguments.sandbox:
-            self._sandbox_store_client.downloadSandbox(sandbox, job_path)
+            ret = self._sandbox_store_client.downloadSandbox(sandbox, job_path)
+            if not ret["OK"]:
+                raise RuntimeError(f"Could not download sandbox {sandbox}: {ret['Message']}")
 
     def __upload_output_sandbox(
         self,
@@ -129,6 +132,11 @@ class JobWrapper:
            using `download_lfns` to ensure that the CWL job inputs reference
            the correct local files.
         """
+        for _, value in inputs.cwl.items():
+            files = value if isinstance(value, list) else [value]
+            for file in files:
+                if isinstance(file, File) and file.path:
+                    file.path = Path(file.path).name
         for input_name, path in updates.items():
             if isinstance(path, Path):
                 inputs.cwl[input_name] = File(path=str(path))
@@ -224,12 +232,14 @@ class JobWrapper:
 
         outputs = self.__parse_output_filepaths(stdout)
 
+        success = True
+
         if self.execution_hooks_plugin:
-            return self.execution_hooks_plugin.post_process(self.job_path, outputs=outputs)
+            success = self.execution_hooks_plugin.post_process(self.job_path, outputs=outputs)
 
         self.__upload_output_sandbox(outputs=outputs)
 
-        return True
+        return success
 
     def run_job(self, job: JobModel) -> bool:
         """Execute a given CWL workflow using cwltool.
