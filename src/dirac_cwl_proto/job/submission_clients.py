@@ -23,13 +23,13 @@ class SubmissionClient(ABC):
     """Abstract base class for job submission strategies."""
 
     @abstractmethod
-    async def upload_sandbox(self, isb_file_paths: list[Path]) -> str | None:
+    async def create_sandbox(self, isb_file_paths: list[Path]) -> str | None:
         """
         Upload parameter files to the sandbox store.
 
         :param isb_file_paths: List of input sandbox file paths
         :param parameter_path: Path to the parameter file
-        :return: Sandbox ID or None
+        :return: Sandbox PFN or None
         """
         pass
 
@@ -46,32 +46,22 @@ class SubmissionClient(ABC):
 class PrototypeSubmissionClient(SubmissionClient):
     """Submission client for local/prototype execution."""
 
-    async def upload_sandbox(self, isb_file_paths: list[Path]) -> str | None:
+    async def create_sandbox(self, isb_file_paths: list[Path]) -> str | None:
         """
         Upload files to the local sandbox store.
 
         :param isb_file_paths: List of input sandbox file paths
         :param parameter_path: Path to the parameter file (not used in local mode)
-        :return: Sandbox ID or None
+        :return: Sandbox PFN or None
         """
         from dirac_cwl_proto.data_management_mocks.sandbox import (
-            MockSandboxStoreClient,
+            create_sandbox,
         )
 
         if not isb_file_paths:
             return None
 
-        Path("sandboxstore").mkdir(exist_ok=True)
-        # Tar the files and upload them to the file catalog
-        res = MockSandboxStoreClient().uploadFilesAsSandbox(fileList=isb_file_paths)
-
-        if not res["OK"]:
-            raise RuntimeError(f"Could not create sandbox : {res['Message']}")
-
-        sandbox_path = Path(res["Value"])
-
-        sandbox_id = sandbox_path.name.replace(".tar.gz", "") if sandbox_path else None
-        return sandbox_id
+        return create_sandbox(paths=isb_file_paths)
 
     async def submit_job(self, job_submission: JobSubmissionModel) -> bool:
         """
@@ -90,7 +80,7 @@ class PrototypeSubmissionClient(SubmissionClient):
 class DIRACSubmissionClient(SubmissionClient):
     """Submission client for DIRAC/DiracX production execution."""
 
-    async def upload_sandbox(
+    async def create_sandbox(
         self,
         isb_file_paths: list[Path],
     ) -> str | None:
@@ -98,7 +88,7 @@ class DIRACSubmissionClient(SubmissionClient):
         Upload parameter files to the sandbox store.
 
         :param isb_file_paths: List of input sandbox file paths
-        :return: Sandbox ID or None
+        :return: Sandbox PFN or None
         """
         return await create_sandbox(isb_file_paths)
 
@@ -136,12 +126,12 @@ class DIRACSubmissionClient(SubmissionClient):
         )
         return True
 
-    def convert_to_jdl(self, job: JobModel, sandbox_id: str) -> str:
+    def convert_to_jdl(self, job: JobModel, sandbox_pfn: str) -> str:
         """
         Convert job model to jdl.
 
         :param job: The task to execute
-        :param sandbox_ids: The sandbox IDs
+        :param sandbox_pfn: The sandbox PFN
         :return: JDL string
         """
         jdl_lines = []
@@ -161,7 +151,7 @@ class DIRACSubmissionClient(SubmissionClient):
         if job_scheduling.sites:
             jdl_lines.append(f"Site = {job_scheduling.sites};")
 
-        jdl_lines.append(f"InputSandbox = {sandbox_id};")
+        jdl_lines.append(f"InputSandbox = {sandbox_pfn};")
         if job.input:
             formatted_lfns = []
             lfns_list = get_lfns(job.input.cwl).values()

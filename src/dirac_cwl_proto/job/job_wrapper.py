@@ -20,7 +20,6 @@ from cwl_utils.parser.cwl_v1_2 import (
     Saveable,
     Workflow,
 )
-from DIRAC.WorkloadManagementSystem.Client.SandboxStoreClient import SandboxStoreClient  # type: ignore[import-untyped]
 from DIRACCommon.Core.Utilities.ReturnValues import (  # type: ignore[import-untyped]
     returnValueOrRaise,
 )
@@ -28,13 +27,17 @@ from rich.text import Text
 from ruamel.yaml import YAML
 
 from dirac_cwl_proto.core.utility import get_lfns
-from dirac_cwl_proto.data_management_mocks.sandbox import MockSandboxStoreClient
 from dirac_cwl_proto.execution_hooks import ExecutionHooksHint
 from dirac_cwl_proto.execution_hooks.core import ExecutionHooksBasePlugin
 from dirac_cwl_proto.submission_models import (
     JobInputModel,
     JobModel,
 )
+
+if os.getenv("DIRAC_PROTO_LOCAL") == "1":
+    from dirac_cwl_proto.data_management_mocks.sandbox import create_sandbox, download_sandbox  # type: ignore[no-redef]
+else:
+    from diracx.api.jobs import create_sandbox, download_sandbox  # type: ignore[no-redef]
 
 # -----------------------------------------------------------------------------
 # JobWrapper
@@ -46,16 +49,10 @@ logger = logging.getLogger(__name__)
 class JobWrapper:
     """Job Wrapper for the execution hook."""
 
-    _sandbox_store_client: SandboxStoreClient
-
     def __init__(self) -> None:
         """Initialize the job wrapper."""
         self.execution_hooks_plugin: ExecutionHooksBasePlugin | None = None
         self.job_path: Path = Path()
-        if os.getenv("DIRAC_PROTO_LOCAL") == "1":
-            self._sandbox_store_client = MockSandboxStoreClient()
-        else:
-            self._sandbox_store_client = SandboxStoreClient()
 
     def __download_input_sandbox(self, arguments: JobInputModel, job_path: Path) -> None:
         """Download the files from the sandbox store.
@@ -67,9 +64,7 @@ class JobWrapper:
         if not self.execution_hooks_plugin:
             raise RuntimeError("Could not download sandboxes")
         for sandbox in arguments.sandbox:
-            ret = self._sandbox_store_client.downloadSandbox(sandbox, job_path)
-            if not ret["OK"]:
-                raise RuntimeError(f"Could not download sandbox {sandbox}: {ret['Message']}")
+            download_sandbox(sandbox, job_path)
 
     def __upload_output_sandbox(
         self,
@@ -81,7 +76,10 @@ class JobWrapper:
             if self.execution_hooks_plugin.output_sandbox and output_name in self.execution_hooks_plugin.output_sandbox:
                 if isinstance(src_path, Path) or isinstance(src_path, str):
                     src_path = [src_path]
-                sb_path = returnValueOrRaise(self._sandbox_store_client.uploadFilesAsSandbox(src_path))
+
+                sb_path = Path(f"sandboxstore/{create_sandbox(src_path)}")
+                if not sb_path.exists():
+                    raise RuntimeError(f"Failed to create sandbox: {sb_path} does not exist")
                 logger.info("Successfully stored output %s in Sandbox %s", output_name, sb_path)
 
     def __download_input_data(self, inputs: JobInputModel, job_path: Path) -> dict[str, Path | list[Path]]:
