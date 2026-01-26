@@ -72,15 +72,17 @@ class JobWrapper:
     ):
         if not self.execution_hooks_plugin:
             raise RuntimeError("Could not upload sandbox : Execution hook is not defined.")
+
+        outputs_to_sandbox = []
         for output_name, src_path in outputs.items():
             if self.execution_hooks_plugin.output_sandbox and output_name in self.execution_hooks_plugin.output_sandbox:
                 if isinstance(src_path, Path) or isinstance(src_path, str):
                     src_path = [src_path]
+                for path in src_path:
+                    outputs_to_sandbox.append(path)
 
-                sb_path = Path(f"sandboxstore/{create_sandbox(src_path)}")
-                if not sb_path.exists():
-                    raise RuntimeError(f"Failed to create sandbox: {sb_path} does not exist")
-                logger.info("Successfully stored output %s in Sandbox %s", output_name, sb_path)
+        sb_path = Path(create_sandbox(outputs_to_sandbox))
+        logger.info("Successfully stored output %s in Sandbox %s", self.execution_hooks_plugin.output_sandbox, sb_path)
 
     def __download_input_data(self, inputs: JobInputModel, job_path: Path) -> dict[str, Path | list[Path]]:
         """Download LFNs into the job working directory.

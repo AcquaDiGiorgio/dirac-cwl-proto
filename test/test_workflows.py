@@ -1,5 +1,6 @@
 """Integration tests for CWL workflow execution."""
 
+import os
 import platform
 import re
 import shutil
@@ -7,13 +8,12 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from statistics import median
 
-import psutil
 import pytest
 from typer.testing import CliRunner
 
 from dirac_cwl_proto import app
+from dirac_cwl_proto.data_management_mocks.sandbox import SANDBOX_STORE_DIR, download_sandbox
 
 
 def strip_ansi_codes(text: str) -> str:
@@ -235,77 +235,67 @@ def test_run_job_validation_failure(cli_runner, cleanup, cwl_file, inputs, expec
         )
 
 
+def read_interval(p: Path):
+    """Read interval."""
+    start, end = p.read_text().splitlines()
+    return int(start), int(end)
+
+
+def overlaps(a, b):
+    """Check if two intervals overlap."""
+    (a0, a1), (b0, b1) = a, b
+    return a0 < b1 and b0 < a1
+
+
 @pytest.mark.skipif(
     platform.system() != "Linux" or not shutil.which("taskset"), reason="taskset command only available on Linux"
 )
-def test_run_job_parallely():
+def test_run_job_parallely(tmp_path, cleanup):
     """Test parallel job execution performance."""
-    command_seq = ["taskset", "-c", "0", "dirac-cwl", "job", "submit", "test/workflows/parallel/description.cwl"]
+    # Ensure the workflow exists
+    workflow = Path("test/workflows/parallel/description.cwl").resolve()
+    assert workflow.exists()
 
-    # Dictionary to evade creating the Process class more than one time
-    #  If not, process.cpu_percent(None) will always return 0
-    processes = {}  # pid: psutil.Process
+    # Ensure we actually have >=2 CPUs available on this runner for the parallel half
+    allowed = os.sched_getaffinity(0)
+    if len(allowed) < 2:
+        pytest.skip("Runner exposes only 1 CPU")
 
-    def get_process(pid):
-        if pid not in processes:
-            processes[pid] = psutil.Process(pid)
-        return processes[pid]
+    # Pick two CPUs to use
+    allowed = sorted(allowed)
+    cpu0, cpu1 = allowed[0], allowed[1]
 
-    parent_popen = subprocess.Popen(command_seq)
-    parent_process = psutil.Process(parent_popen.pid)
-    seq_cpu_list = []
+    def run(cpu_spec: str):
+        result = subprocess.run(
+            ["taskset", "-c", cpu_spec, "dirac-cwl", "job", "submit", str(workflow)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=True,
+        )
+        print(result.stdout)
 
-    while parent_popen.poll() is None:
-        time.sleep(0.1)
+        # TODO: need to find a way to get a job id and associate the output sandbox to the job id
+        sandbox_files = list(Path(SANDBOX_STORE_DIR).glob("*.tar.*"))
+        assert len(sandbox_files) == 1, f"Expected exactly one sandbox file, found {len(sandbox_files)}"
+        sandbox_file = sandbox_files[0].name
+        download_sandbox(str(sandbox_file), tmp_path)
 
-        try:
-            cpu_percentage = parent_process.cpu_percent(None)
-            seq_cpu_list += [cpu_percentage]
-        except psutil.NoSuchProcess:
-            break
+        # Get the output sandbox paths
+        a = read_interval(tmp_path / "a.txt")
+        b = read_interval(tmp_path / "b.txt")
 
-        for child in parent_process.children(recursive=True):
-            try:
-                child_process = get_process(child.pid)
-                cpu_percentage = child_process.cpu_percent(None)
-                seq_cpu_list += [cpu_percentage]
-            except psutil.NoSuchProcess:
-                continue
+        # TODO: no need that line once we assign sandbox to job id
+        (Path(SANDBOX_STORE_DIR) / sandbox_file).unlink()  # Clean up sandboxstore for next run
+        return a, b
 
-    command_par = ["dirac-cwl", "job", "submit", "test/workflows/parallel/description.cwl"]
+    # 1 CPU => expect no overlap
+    a1, b1 = run(str(cpu0))
+    assert not overlaps(a1, b1), f"Expected sequential execution on 1 CPU, got overlap: a={a1}, b={b1}"
 
-    parent_popen = subprocess.Popen(command_par)
-    parent_process = psutil.Process(parent_popen.pid)
-    par_cpu_list = []
-
-    processes = {}
-
-    while parent_popen.poll() is None:
-        time.sleep(0.1)
-
-        try:
-            cpu_percentage = parent_process.cpu_percent(None)
-            par_cpu_list += [cpu_percentage]
-        except psutil.NoSuchProcess:
-            break
-
-        for child in parent_process.children(recursive=True):
-            try:
-                child_process = get_process(child.pid)
-                cpu_percentage = child_process.cpu_percent(None)
-                par_cpu_list += [cpu_percentage]
-            except psutil.NoSuchProcess:
-                continue
-
-    # Use only when the process is working.
-    seq_working_median = median(filter(lambda x: int(x) != 0, seq_cpu_list))
-    par_working_median = median(filter(lambda x: int(x) != 0, par_cpu_list))
-
-    # The parallel execution CPU usage should be duble, due to it executing 2 steps in parallel
-    # In an ideal situation: Sequential = 100% and Parallel = 200% CPU usage
-    assert (
-        int(abs(((seq_working_median * 2) - par_working_median) / par_working_median * 100)) <= 10
-    ), "Error between the sequential and parallel cpu median is higher than 10%"
+    # 2 CPUs => expect overlap
+    a2, b2 = run(f"{cpu0},{cpu1}")
+    assert overlaps(a2, b2), f"Expected parallel execution on 2 CPUs, got no overlap: a={a2}, b={b2}"
 
 
 @pytest.mark.parametrize(

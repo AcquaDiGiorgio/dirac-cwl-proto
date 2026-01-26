@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 SANDBOX_CHECKSUM_ALGORITHM = "sha256"
 SANDBOX_COMPRESSION: Literal["zst"] = "zst"
 
+# Get the project root directory (where pyproject.toml is located)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+SANDBOX_STORE_DIR = PROJECT_ROOT / "sandboxstore"
+
 
 def create_sandbox(paths: Sequence[str | Path]):
     """Upload a sandbox archive to the sandboxstore.
@@ -56,8 +60,8 @@ def create_sandbox(paths: Sequence[str | Path]):
         logger.debug("Sandbox PFN is %s", pfn)
 
         # Create sandbox in sandboxstore
-        Path("sandboxstore").mkdir(exist_ok=True)
-        sandbox_path = Path(f"sandboxstore/{pfn}")
+        SANDBOX_STORE_DIR.mkdir(exist_ok=True)
+        sandbox_path = SANDBOX_STORE_DIR / pfn
         if not sandbox_path.exists():
             with tarfile.open(sandbox_path, "w:gz") as tar:
                 for file in paths:
@@ -79,7 +83,7 @@ def download_sandbox(pfn: str, destination: Path):
     :param destination: Destination directory
     """
     logger.debug("Retrieving sandbox for %s", pfn)
-    sandbox_archive = Path(f"sandboxstore/{pfn}")
+    sandbox_archive = SANDBOX_STORE_DIR / pfn
     with tarfile.open(sandbox_archive) as tf:
         tf.extractall(path=Path(destination), filter="data")
     logger.debug("Extracted %s to %s", pfn, destination)
