@@ -81,7 +81,7 @@ class UploadLogFile(PostProcessCommand):
         else:
             logHttpsURL = result["Value"]
 
-        logHttpsURL = logHttpsURL.replace('.zip','/')
+        logHttpsURL = logHttpsURL.replace(".zip", "/")
         job_report.setJobParameter("Log URL", f'<a href="{logHttpsURL}">Log file directory</a>')
 
         return S_OK("Log Files uploaded")
